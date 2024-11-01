@@ -25,4 +25,8 @@
     .slidev-layout[layout=quote] {
         @apply flex h-screen w-screen justify-center items-center
     }
+
+    .slidev-code-wrapper {
+        @apply w-full
+    }
 }
