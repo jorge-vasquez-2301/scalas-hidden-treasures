@@ -153,12 +153,33 @@ lithium,Li,453.65,1603
 
 ---
 transition: slide-left
+layout: image-right
+image: /todo.jpg
+---
+
+### **Example:** Chemical Elements CSV
+
+<div class="mt-4 flex flex-col h-4/5 w-full justify-center gap-5 text-justify">
+  <p class="text-xl">Steps we will follow:</p>
+  <ul>
+    <li v-click>Domain modelling</li>
+    <li v-click>Define a <code>CSVParser</code></li>
+    <li v-click>Define a <code>CSVRenderer</code></li>
+    <li v-click>Read CSV using streams</li>
+    <li v-click>Process CSV records</li>
+    <li v-click>Write processed CSV</li>
+  </ul>
+</div>
+
+---
+transition: slide-left
 layout: default
 ---
 
-## **Example:** Chemical Elements CSV
+## Domain modelling
 
-```scala {all}{maxHeight:'400px'}
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3|4|5|6|8|10-14|16-17|17}{maxHeight:'400px'}
 //> using jvm graalvm-java23:23.0.0
 //> using scala 3.5.2
 //> using dep dev.zio::zio-interop-cats:23.1.0.3
@@ -166,6 +187,132 @@ layout: default
 //> using dep dev.zio::zio-schema:1.5.0
 //> using dep dev.zio::zio-schema-derivation:1.5.0
 
+import zio.schema.*
+
+final case class Element(element: String, symbol: String, meltingTemp: Double, boilingTemp: Double):
+  self =>
+
+  def updateTemps(f: Double => Double) =
+    self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
+
+object Element:
+  given Schema.Record[Element] = DeriveSchema.gen[Element]
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Define a `CSVParser`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3|5-10}{maxHeight:'400px'}
+import info.fingo.spata.CSVParser
+import zio.*
+import zio.interop.catz.*
+
+// Default CSVParser, according to RFC 4180
+// Delimiter: Comma (,)
+// Quote character: Double quote (")
+// The first line of the file is considered the header row
+// Headers will be mapped to case class fields
+val csvParserWithDefaults: CSVParser[Task] = CSVParser[Task]
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Define a `CSVParser`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {5-10|6|7|8|9|12-15|13|14|15|17}{maxHeight:'400px'}
+import info.fingo.spata.{CSVParser, Record}
+import zio.*
+import zio.interop.catz.*
+
+final case class Element(
+  element: String,      // Header: element
+  symbol: String,       // Header: symbol
+  meltingTemp: Double,  // Header: melting temperature [F]
+  boilingTemp: Double   // Header: boiling temperature [F]
+)
+
+val csvParser: CSVParser[Task] =
+  CSVParser.config
+    .mapHeader(Map("melting temperature [F]" -> "meltingTemp", "boiling temperature [F]" -> "boilingTemp"))
+    .parser[Task]
+
+val csvParserPipe: fs2.Pipe[Task, Char, Record] = csvParser.parse
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Define a `CSVRenderer`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3|5-10}{maxHeight:'400px'}
+import info.fingo.spata.CSVRenderer
+import zio.*
+import zio.interop.catz.*
+
+// Default CSVRenderer, according to RFC 4180
+// Delimiter: Comma (,)
+// Quote character: Double quote (")
+// The rendered CSV will contain a header row
+// Case class fields will be mapped to headers
+val csvRendererWithDefaults: CSVRenderer[Task] = CSVRenderer[Task]
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Define a `CSVRenderer`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {5-10|6|7|8|9|12-16|13|14|15|16|18}{maxHeight:'400px'}
+import info.fingo.spata.{CSVParser, Record}
+import zio.*
+import zio.interop.catz.*
+
+final case class Element(
+  element: String,      // Header: element
+  symbol: String,       // Header: symbol
+  meltingTemp: Double,  // Header: melting temperature [F]
+  boilingTemp: Double   // Header: boiling temperature [F]
+)
+
+val csvRenderer: CSVRenderer[Task] =
+  CSVRenderer.config
+    .fieldDelimiter(';')
+    .mapHeader(Map("meltingTemp" -> "melting temperature [C]", "boilingTemp" -> "boiling temperature [C]"))
+    .renderer[Task]
+
+val csvRendererPipe: fs2.Pipe[Task, Record, Char] = csvRenderer.render
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Process CSV
+
+<div class="flex h-full w-full items-center">
+```scala {1-7|9|11-16|18-19|21-33|24-25|26|27|28|22,29|30|31|32|33|35-37|37}{maxHeight:'400px'}
 import java.nio.file.Paths
 import zio.*
 import zio.interop.catz.*
@@ -175,35 +322,13 @@ import info.fingo.spata.io.{ Reader, Writer }
 import zio.schema.*
 
 object SpataExample extends ZIOAppDefault:
-  final case class Element(element: String, symbol: String, meltingTemp: Double, boilingTemp: Double):
-    self =>
 
-    def updateTemps(f: Double => Double) =
-      self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
+  ...
 
-  object Element:
-    given Schema.Record[Element] = DeriveSchema.gen[Element]
+  val csvParserPipe: fs2.Pipe[Task, Char, Record] = ...
 
-  extension [A](a: A)
-    def toRecord(using schema: Schema.Record[A]) =
-      Record.fromPairs(schema.fields.map(field => field.fieldName -> field.get(a).toString)*)
-
-  val csvParserWithDefaults: fs2.Pipe[Task, Char, Record] = CSVParser[Task].parse
-
-  val csvParser: fs2.Pipe[Task, Char, Record] =
-    CSVParser.config
-      .mapHeader(Map("melting temperature [F]" -> "meltingTemp", "boiling temperature [F]" -> "boilingTemp"))
-      .parser[Task]
-      .parse
-
-  val csvRendererWithDefaults: fs2.Pipe[Task, Record, Char] = CSVRenderer[Task].render
-
-  val csvRenderer: fs2.Pipe[Task, Record, Char] =
-    CSVRenderer.config
-      .fieldDelimiter(';')
-      .mapHeader(Map("meltingTemp" -> "melting temperature [C]", "boilingTemp" -> "boiling temperature [C]"))
-      .renderer[Task]
-      .render
+  ...
+  val csvRendererPipe: fs2.Pipe[Task, Record, Char] = ...
 
   val fahrenheitCSV = "testdata/elements-fahrenheit.csv"
   val celsiusCSV    = "testdata/elements-celsius.csv"
@@ -213,18 +338,49 @@ object SpataExample extends ZIOAppDefault:
 
     Reader[Task]
       .read(Paths.get(fahrenheitCSV))
-      .through(csvParser)
+      .through(csvParserPipe)
       .toZStream()
       .mapZIO(record => ZIO.fromEither(record.to[Element]))
-      .map(_.updateTemps(fahrenheitToCelsius).toRecord)
+      .map(_.updateTemps(fahrenheitToCelsius))
+      .map(_.toRecord) // toRecord is actually an extension method
       .toFs2Stream
-      .through(csvRenderer)
+      .through(csvRendererPipe)
       .through(Writer[Task].write(Paths.get(celsiusCSV)))
 
   val run =
-    ZIO.log(s"Processing $fahrenheitCSV") *> processor.compile.drain
+    ZIO.log(s"Processing $fahrenheitCSV")
+      *> processor.compile.drain
 
 ```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+### Converting a case class to a CSV `Record` using **ZIO Schema**
+
+<div class="flex h-4/5 w-full items-center">
+```scala {4-11|11|13-15|14|15}{maxHeight:'400px'}
+import info.fingo.spata.Record
+import zio.schema.*
+
+final case class Element(element: String, symbol: String, meltingTemp: Double, boilingTemp: Double):
+  self =>
+
+  def updateTemps(f: Double => Double) =
+    self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
+
+object Element:
+  given Schema.Record[Element] = DeriveSchema.gen[Element]
+
+extension [A](a: A)
+  def toRecord(using schema: Schema.Record[A]) =
+    Record.fromPairs(schema.fields.map(field => field.fieldName -> field.get(a).toString)*)
+
+```
+</div>
 
 ---
 transition: slide-left
