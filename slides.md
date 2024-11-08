@@ -73,7 +73,6 @@ image: ./agenda.jpg
 ---
 transition: slide-left
 layout: cover
-image: csv.jpg
 ---
 
 ## Stream-based CSV processing with **Spata**
@@ -153,26 +152,6 @@ lithium,Li,453.65,1603
 
 ---
 transition: slide-left
-layout: image-right
-image: /todo.jpg
----
-
-### **Example:** Chemical Elements CSV
-
-<div class="mt-4 flex flex-col h-4/5 w-full justify-center gap-5 text-justify">
-  <p class="text-xl">Steps we will follow:</p>
-  <ul>
-    <li v-click>Domain modelling</li>
-    <li v-click>Define a <code>CSVParser</code></li>
-    <li v-click>Define a <code>CSVRenderer</code></li>
-    <li v-click>Read CSV using streams</li>
-    <li v-click>Process CSV records</li>
-    <li v-click>Write processed CSV</li>
-  </ul>
-</div>
-
----
-transition: slide-left
 layout: default
 ---
 
@@ -182,8 +161,8 @@ layout: default
 ```scala {1|2|3|4|5|6|8|10-14|16-17|17}{maxHeight:'400px'}
 //> using jvm graalvm-java23:23.0.0
 //> using scala 3.5.2
-//> using dep dev.zio::zio-interop-cats:23.1.0.3
 //> using dep info.fingo::spata:3.2.1
+//> using dep dev.zio::zio-interop-cats:23.1.0.3
 //> using dep dev.zio::zio-schema:1.5.0
 //> using dep dev.zio::zio-schema-derivation:1.5.0
 
@@ -374,6 +353,89 @@ final case class Element(element: String, symbol: String, meltingTemp: Double, b
 
 object Element:
   given Schema.Record[Element] = DeriveSchema.gen[Element]
+
+extension [A](a: A)
+  def toRecord(using schema: Schema.Record[A]) =
+    Record.fromPairs(schema.fields.map(field => field.fieldName -> field.get(a).toString)*)
+
+```
+</div>
+
+---
+transition: slide-left
+layout: cover
+---
+
+## Type-safe processing of Parquet files with <br/> **ZIO Apache Parquet**
+
+---
+transition: slide-left
+layout: default
+---
+
+### Type-safe processing of Parquet files with **ZIO Apache Parquet**
+
+<div class="mt-4 flex h-4/5 w-full items-center gap-5 text-justify">
+  <ul>
+    <li v-click><b>ZIO-powered</b> wrapper for Apache Parquet's Java implementation</li>
+    <li v-click>Leverages <b>ZIO Schema Derivation</b> to automatically derive codecs</li>
+    <li v-click>Leverages <b>ZIO Schema Accessors</b> to provide type-safe filter predicates</li>
+    <li v-click><b>No Spark required</b> to read/write Parquet files</li>
+  </ul>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Domain modelling
+
+<div class="flex h-full w-full items-center">
+```scala {1|2|3|4|5|6|7|9|10|11|12|14-18|21-31|33-34|36-37|39-40|42-43|45-47}{maxHeight:'400px'}
+//> using jvm graalvm-java11:22.3.3
+//> using scala 3.5.2
+//> using dep me.mnedokushev::zio-apache-parquet-core:0.1.4
+//> using dep info.fingo::spata:3.2.1
+//> using dep dev.zio::zio-interop-cats:23.1.0.3
+//> using dep dev.zio::zio-schema:1.5.0
+//> using dep dev.zio::zio-schema-derivation:1.5.0
+
+import me.mnedokushev.zio.apache.parquet.core.codec.*
+import me.mnedokushev.zio.apache.parquet.core.filter.*
+import info.fingo.spata.Record
+import zio.schema.*
+
+final case class Element(element: String, symbol: String, meltingTemp: Double, boilingTemp: Double):
+  self =>
+
+  def updateTemps(f: Double => Double) =
+    self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
+
+object Element:
+  given Schema.CaseClass4.WithFields[
+    "element",
+    "symbol",
+    "meltingTemp",
+    "boilingTemp",
+    String,
+    String,
+    Double,
+    Double,
+    Element
+  ] = DeriveSchema.gen[Element]
+
+  // SchemaEncoder is used to generate the corresponding Parquet Schema when writing files
+  given SchemaEncoder[Element] = Derive.derive[SchemaEncoder, Element](SchemaEncoderDeriver.default)
+
+  // Element => Value
+  given ValueEncoder[Element] = Derive.derive[ValueEncoder, Element](ValueEncoderDeriver.default)
+
+  // Value => Element
+  given ValueDecoder[Element] = Derive.derive[ValueDecoder, Element](ValueDecoderDeriver.default)
+
+  given TypeTag[Element]                          = Derive.derive[TypeTag, Element](TypeTagDeriver.default)
+  val (element, symbol, meltingTemp, boilingTemp) = Filter[Element].columns
 
 extension [A](a: A)
   def toRecord(using schema: Schema.Record[A]) =
