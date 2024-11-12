@@ -27,17 +27,18 @@ drawings:
   syncAll: true
 
 transition: slide-left
-background: /treasure.jpg
 ---
 
 ### Scala's Hidden Treasures
 ### Five ZIO-Compatible Libraries you didn't know you needed!
 
-<b>December 2024</b>
+<style>
+  .slidev-layout.cover {
+      @apply !bg-[url('/background.png')] pl-20 pt-20
+  }
+</style>
 
-<div class="absolute top-10 right-16">
-  <img src="/functionalScalaLogoWhite.png" class="h-10" />
-</div>
+<b>December 2024</b>
 
 ---
 transition: slide-left
@@ -142,7 +143,7 @@ layout: default
 ## **Example:** Chemical Elements CSV
 
 <div class="flex h-4/5 w-full items-center">
-```csv {all} {maxHeight:'400px'}
+```csv {all} {maxHeight:'300px'}
 element,symbol,melting temperature [F],boiling temperature [F]
 hydrogen,H,13.99,20.271
 helium,He,0.95,4.222
@@ -158,7 +159,7 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|8|10-14|16-17|17}{maxHeight:'400px'}
+```scala {1|2|3|4|5|6|8|10-14|16-17|17}{maxHeight:'300px'}
 //> using jvm graalvm-java23:23.0.0
 //> using scala 3.5.2
 //> using dep info.fingo::spata:3.2.1
@@ -188,7 +189,7 @@ layout: default
 ## Define a `CSVParser`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|5-10}{maxHeight:'400px'}
+```scala {1|2|3|5-10}{maxHeight:'300px'}
 import info.fingo.spata.CSVParser
 import zio.*
 import zio.interop.catz.*
@@ -210,7 +211,7 @@ layout: default
 ## Define a `CSVParser`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {5-10|6|7|8|9|12-15|13|14|15|17}{maxHeight:'400px'}
+```scala {5-10|6|7|8|9|12-15|13|14|15|17}{maxHeight:'300px'}
 import info.fingo.spata.{CSVParser, Record}
 import zio.*
 import zio.interop.catz.*
@@ -239,7 +240,7 @@ layout: default
 ## Define a `CSVRenderer`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|5-10}{maxHeight:'400px'}
+```scala {1|2|3|5-10}{maxHeight:'300px'}
 import info.fingo.spata.CSVRenderer
 import zio.*
 import zio.interop.catz.*
@@ -261,7 +262,7 @@ layout: default
 ## Define a `CSVRenderer`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {5-10|6|7|8|9|12-16|13|14|15|16|18}{maxHeight:'400px'}
+```scala {5-10|6|7|8|9|12-16|13|14|15|16|18}{maxHeight:'300px'}
 import info.fingo.spata.{CSVParser, Record}
 import zio.*
 import zio.interop.catz.*
@@ -290,8 +291,8 @@ layout: default
 
 ## Process CSV
 
-<div class="flex h-full w-full items-center">
-```scala {1-7|9|11-16|18-19|21-33|24-25|26|27|28|22,29|30|31|32|33|35-37|37}{maxHeight:'400px'}
+<div class="flex h-4/5 w-full items-center">
+```scala {1-7|9|11-16|18-19|21-33|24-25|26|27|28|22,29|30|31|32|33|35-37|37}{maxHeight:'300px'}
 import java.nio.file.Paths
 import zio.*
 import zio.interop.catz.*
@@ -341,7 +342,7 @@ layout: default
 ### Converting a case class to a CSV `Record` using **ZIO Schema**
 
 <div class="flex h-4/5 w-full items-center">
-```scala {4-11|11|13-15|14|15}{maxHeight:'400px'}
+```scala {4-11|11|13-15|14|15}{maxHeight:'300px'}
 import info.fingo.spata.Record
 import zio.schema.*
 
@@ -391,8 +392,8 @@ layout: default
 
 ## Domain modelling
 
-<div class="flex h-full w-full items-center">
-```scala {1|2|3|4|5|6|7|9|10|11|12|14-18|21-31|33-34|36-37|39-40|42-43|45-47}{maxHeight:'400px'}
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3|4|5|6|7|9|10|11|12|14-18|21-31|33-34|36-37|39-40|42-43|45-47}{maxHeight:'300px'}
 //> using jvm graalvm-java11:22.3.3
 //> using scala 3.5.2
 //> using dep me.mnedokushev::zio-apache-parquet-core:0.1.4
@@ -413,7 +414,7 @@ final case class Element(element: String, symbol: String, meltingTemp: Double, b
     self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
 
 object Element:
-  given Schema.CaseClass4.WithFields[
+  given schema: Schema.CaseClass4.WithFields[
     "element",
     "symbol",
     "meltingTemp",
@@ -426,7 +427,7 @@ object Element:
   ] = DeriveSchema.gen[Element]
 
   // SchemaEncoder is used to generate the corresponding Parquet Schema when writing files
-  given SchemaEncoder[Element] = Derive.derive[SchemaEncoder, Element](SchemaEncoderDeriver.default)
+  given schemaEncoder: SchemaEncoder[Element] = Derive.derive[SchemaEncoder, Element](SchemaEncoderDeriver.default)
 
   // Element => Value
   given ValueEncoder[Element] = Derive.derive[ValueEncoder, Element](ValueEncoderDeriver.default)
@@ -441,6 +442,138 @@ extension [A](a: A)
   def toRecord(using schema: Schema.Record[A]) =
     Record.fromPairs(schema.fields.map(field => field.fieldName -> field.get(a).toString)*)
 
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Reading from CSV and processing
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-8|10|12-16|18|20-28}{maxHeight:'300px'}
+import java.nio.file.Paths
+import info.fingo.spata.{ CSVParser, Record }
+import info.fingo.spata.io.Reader
+import zio.schema.*
+import zio.*
+import zio.stream.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z.*
+
+type Eff[A] = RIO[Scope, A]
+
+val csvParser: fs2.Pipe[Eff, Char, Record] =
+  CSVParser.config
+    .mapHeader(Map("melting temperature [F]" -> "meltingTemp", "boiling temperature [F]" -> "boilingTemp"))
+    .parser[Eff]
+    .parse
+
+val elementsFahrenheitCSVFile = Paths.get("testdata/elements-fahrenheit.csv")
+
+val readFromCsvAndProcess: ZStream[Scope, Throwable, Element] =
+  def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
+
+  Reader[Eff]
+    .read(elementsFahrenheitCSVFile)
+    .through(csvParser)
+    .toZStream()
+    .mapZIO(record => ZIO.fromEither(record.to[Element]))
+    .map(_.updateTemps(fahrenheitToCelsius))
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Working with Parquet
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-2|3-6|7-12|14-19|21-28|30|33-34|35-40|41-43|44-45|46-52|50|53-54}{maxHeight:'300px'}
+import info.fingo.spata.{ CSVRenderer, Record }
+import info.fingo.spata.io.Writer
+import me.mnedokushev.zio.apache.parquet.core.hadoop.{ ParquetReader, ParquetWriter, Path }
+import org.apache.parquet.hadoop.*
+import me.mnedokushev.zio.apache.parquet.core.filter.syntax.*
+import me.mnedokushev.zio.apache.parquet.core.filter.*
+import java.nio.file.Paths
+import zio.schema.*
+import zio.*
+import zio.stream.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z.*
+
+val csvRenderer: fs2.Pipe[Eff, Record, Char] =
+  CSVRenderer.config
+    .fieldDelimiter(';')
+    .mapHeader(Map("meltingTemp" -> "melting temperature [C]", "boilingTemp" -> "boiling temperature [C]"))
+    .renderer[Eff]
+    .render
+
+def writeToCsv(stream: ZStream[Scope, Throwable, Element], path: java.nio.file.Path) =
+  stream
+    .map(_.toRecord)
+    .toFs2Stream
+    .through(csvRenderer)
+    .through(Writer[Eff].write(path))
+    .compile
+    .drain
+
+val processor: RIO[ParquetWriter[Element] & ParquetReader[Element], Unit] =
+  ZIO.scoped {
+    for
+      _                      <- ZIO.log(s"Writing all elements to $elementsCelsiusParquetFile, records' schema will be:")
+      _                      <- ZIO.log(Element.schemaEncoder.encode(Element.schema, "element", optional = false).toString)
+      //                      required group element {
+      //                        required binary element (STRING);
+      //                        required binary symbol (STRING);
+      //                        required double meltingTemp;
+      //                        required double boilingTemp;
+      //                      }
+      _                      <- ZIO.serviceWithZIO[ParquetWriter[Element]] {
+                                  _.writeStream(elementsCelsiusParquetFile, readFromCsvAndProcess)
+                                }
+      _                      <- ZIO.log(s"Reading all elements from $elementsCelsiusParquetFile")
+      allElementsStream      <- ZIO.serviceWith[ParquetReader[Element]](_.readStream(elementsCelsiusParquetFile))
+      _                      <- ZIO.log(s"Reading and Filtering elements from $elementsCelsiusParquetFile")
+      filteredElementsStream <- ZIO.serviceWith[ParquetReader[Element]] {
+                                  _.readStreamFiltered(
+                                    elementsCelsiusParquetFile,
+                                    filter(Element.element =!= "hydrogen" `and` Element.meltingTemp > 0)
+                                  )
+                                }
+      _                      <- ZIO.log(s"Writing filtered elements to $elementsCelsiusFilteredCSVFile")
+      _                      <- writeToCsv(filteredElementsStream, elementsCelsiusFilteredCSVFile)
+    yield ()
+  }
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Providing layers
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|5|7-12|9|10|11}{maxHeight:'300px'}
+object ZIOApacheParquetExample extends ZIOAppDefault:
+  
+  ...
+
+  val processor: RIO[ParquetWriter[Element] & ParquetReader[Element], Unit] = ...
+
+  override def run =
+    ZIO.log(s"Processing $elementsFahrenheitCSVFile")
+      *> processor.provide(
+        ParquetWriter.configured[Element](writeMode = ParquetFileWriter.Mode.OVERWRITE),
+        ParquetReader.configured[Element]()
+      )
 ```
 </div>
 
@@ -498,10 +631,23 @@ layout: image-right
 image: /computer.png
 ---
 
-## **Thank you!**
+## **Contact me**
 
 <div class="grid grid-cols-8 gap-4 items-center h-4/5 content-center text-2xl">
   <div class="col-span-1"><img src="/x.png" class="w-8" /></div> <div class="col-span-7">@jorvasquez2301</div>
   <div class="col-span-1"><img src="/linkedin.png" class="w-8" /></div> <div class="col-span-7">jorge-vasquez-2301</div>
   <div class="col-span-1"><img src="/email.png" class="w-8" /></div> <div class="col-span-7">jorge.vasquez@ziverge.com</div>
 </div>
+
+---
+transition: slide-left
+layout: cover
+---
+
+# Thank you!
+
+<style>
+  .slidev-layout.cover {
+      @apply !bg-[url('/background.png')] pl-20 pt-20
+  }
+</style>
