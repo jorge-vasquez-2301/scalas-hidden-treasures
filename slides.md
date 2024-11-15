@@ -579,6 +579,185 @@ object ZIOApacheParquetExample extends ZIOAppDefault:
 
 ---
 transition: slide-left
+layout: cover
+---
+
+## YAML parsing with **yaml4s**
+
+---
+transition: slide-left
+layout: default
+---
+
+## YAML parsing with **yaml4s**
+
+<div class="mt-4 flex h-4/5 w-full items-center gap-5 text-justify">
+  <ul>
+    <li v-click><b>yaml4s</b> allows to parse a YAML string as a `YAML` data type or Json</li>
+    <li v-click>
+      To parse <b>YAML as Json</b>, several libraries are supported
+       <ul>
+        <li>zio-json</li>
+        <li>circe</li>
+        <li>play-json</li>
+        <li>spray-json</li>
+        <li>json4s</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## **Example:** Integration with zio-json
+
+<div class="flex h-4/5 w-full items-center">
+```yaml {1-16|17-26|27-35}{maxHeight:'300px'}
+- id: 671653478d28c542477d142f
+  index: 0
+  guid: 6e73efbe-7550-45e9-afae-d2a18d7e904c
+  isActive: true
+  balance: "$$1,884.35"
+  picture: "http://placehold.it/32x32"
+  age: 28
+  eyeColor: green
+  name: Olson Browning
+  gender: male
+  company: TSUNAMIA
+  email: olsonbrowning@tsunamia.com
+  phone: +1 (978) 403-3228
+  address: "704 Malbone Street, Comptche, Arkansas, 4153"
+  about: "Et ea reprehenderit nostrud eiusmod nisi adipisicing. Laborum ipsum proident mollit sint laborum. Elit aliqua dolore occaecat sint in do. Id ex consectetur dolor commodo cupidatat. Sunt esse in laborum id. Ipsum velit nisi quis magna do laborum pariatur nisi excepteur amet dolore incididunt do."
+  registered: "2024-08-18T12:48:25 +04:00"
+  latitude: 31.330656
+  longitude: 58.974609
+  tags:
+    - cupidatat
+    - ex
+    - officia
+    - veniam
+    - reprehenderit
+    - qui
+    - nisi
+  friends:
+    - id: 0
+      name: Lancaster Cabrera
+    - id: 1
+      name: Bernadette Drake
+    - id: 2
+      name: Pruitt Rocha
+  greeting: "Hello, Olson Browning! You have 10 unread messages."
+  favoriteFruit: strawberry
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Domain modelling
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3-4|5-6|7-8|9-10|11|13|15|17-32|33-40}{maxHeight:'300px'}
+//> using jvm graalvm-java23:23.0.0
+//> using scala 3.5.2
+// Cross platform backend
+//> using dep dev.hnaderi::yaml4s-backend:0.3.0
+// JVM-only backend
+//> using dep dev.hnaderi::yaml4s-snake:0.3.0
+// Native-only backend
+//> using dep dev.hnaderi::yaml4s-libyaml:0.3.0
+// JS-only backend
+//> using dep dev.hnaderi::yaml4s-jsyaml:0.3.0
+//> using dep dev.hnaderi::yaml4s-zio-json:0.3.0
+
+import zio.json.*
+
+final case class Friend(id: Int, name: String) derives JsonCodec
+
+final case class Person(
+  id: String,
+  index: Int,
+  guid: String,
+  isActive: Boolean,
+  balance: String,
+  picture: String,
+  age: Int,
+  eyeColor: String,
+  name: String,
+  gender: String,
+  company: String,
+  email: String,
+  phone: String,
+  address: String,
+  about: String,
+  registered: String,
+  latitude: Double,
+  longitude: Double,
+  tags: List[String],
+  friends: List[Friend],
+  greeting: String,
+  favoriteFruit: String
+) derives JsonCodec
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Processing the YAML file
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3-4|5|6|8|9-14|10-11|12|13|14|16-19|17|18|19|21|22|24-36|26-27|28|29|30|31|32|33|34-35}{maxHeight:'300px'}
+import zio.*
+import zio.stream.*
+import zio.json.*
+import zio.json.ast.*
+import dev.hnaderi.yaml4s.*
+import dev.hnaderi.yaml4s.ziojson.*
+
+object Yaml4sExample extends ZIOAppDefault:
+  def readFile(fileName: String): Task[String] =
+    ZStream
+      .fromFileName(fileName)
+      .via(ZPipeline.utf8Decode)
+      .runCollect
+      .map(_.mkString)
+
+  def printFile(contents: String, fileName: String): Task[Long] =
+    ZStream(contents)
+      .via(ZPipeline.utf8Encode)
+      .run(ZSink.fromFileName(fileName))
+
+  val peopleYaml         = "testdata/people.yaml"
+  val filteredPeopleYaml = "testdata/filteredPeople.yaml"
+
+  val run =
+    for
+      _                    <- ZIO.log(s"Processing $peopleYaml")
+      yamlStr              <- readFile(peopleYaml)
+      yaml                 <- ZIO.fromEither(Backend.parse[YAML](yamlStr))
+      json                 <- ZIO.fromEither(Backend.parse[Json](yamlStr))
+      people               <- ZIO.fromEither(json.as[List[Person]])
+      filteredPeople        = people.filter(_.tags.contains("est"))
+      filteredPeopleJson   <- ZIO.fromEither(filteredPeople.toJsonAST)
+      filteredPeopleYamlStr = Backend.print(filteredPeopleJson)
+      _                    <- ZIO.log(s"Writing $filteredPeopleYaml")
+      _                    <- printFile(filteredPeopleYamlStr, filteredPeopleYaml)
+    yield ()
+
+```
+</div>
+
+---
+transition: slide-left
 layout: image-right
 image: /summary.jpg
 ---
