@@ -1,5 +1,6 @@
 :root {
     --ziverge-color: #ff814f;
+    --background-color: #031839;
 
     b,
     strong {
@@ -15,7 +16,7 @@
     }
 
     .slidev-layout {
-        @apply bg-[#031839]
+        @apply bg-[var(--background-color)]
     }
 
     .slidev-layout.cover {
