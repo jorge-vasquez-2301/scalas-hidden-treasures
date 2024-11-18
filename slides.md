@@ -66,8 +66,8 @@ image: ./agenda.jpg
     <li v-click>Stream-based CSV processing with <b>Spata</b></li>
     <li v-click>Type-safe processing of Parquet files with <b>ZIO Apache Parquet</b></li>
     <li v-click>YAML processing with <b>YAML4s</b></li>
-    <li v-click>Integration between Doobie and ZIO with <b>Tranzactio</b></li>
     <li v-click>High-performance embedded key-value stores with <b>ZIO LMDB</b></li> 
+    <li v-click>Integration between Doobie and ZIO with <b>Tranzactio</b></li>
   </ul>
 </div>
 
@@ -752,6 +752,195 @@ object Yaml4sExample extends ZIOAppDefault:
       _                    <- ZIO.log(s"Writing $filteredPeopleYaml")
       _                    <- printFile(filteredPeopleYamlStr, filteredPeopleYaml)
     yield ()
+
+```
+</div>
+
+---
+transition: slide-left
+layout: cover
+---
+
+## High-performance embedded key-value stores with <b>ZIO LMDB</b>
+
+---
+transition: slide-left
+layout: default
+---
+
+## High-performance embedded key-value stores with <b>ZIO LMDB</b>
+
+<div class="mt-4 flex h-3/5 w-full items-center gap-5 text-justify">
+  <ul>
+    <li v-click>Lightning Memory-Mapped Database</li>
+    <li v-click>Embedded key/value store</li>
+    <li v-click>Based on the <b>lmdb-java</b> library, it brings a higher-level ZIO API</li>
+    <li v-click>JSON based storage using <b>zio-json</b></li>
+    <li v-click>Very precise error management thanks to <b>Union Types</b></li>
+  </ul>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Domain modelling
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3|4|5|6|8|10-19|15}{maxHeight:'300px'}
+//> using jvm graalvm-java23:23.0.0
+//> using javaOpt "--add-opens", "java.base/java.nio=ALL-UNNAMED", "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED"
+//> using scala 3.5.2
+//> using dep fr.janalyse::zio-lmdb:1.8.2
+//> using dep info.fingo::spata:3.2.1
+//> using dep dev.zio::zio-interop-cats:23.1.0.3
+
+import zio.json.*
+
+final case class Element(
+  element: String,
+  symbol: String,
+  meltingTemp: Double,
+  boilingTemp: Double
+) derives JsonCodec:
+  self =>
+
+  def updateTemps(f: Double => Double) =
+    self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Playing with **ZIO-LMDB**
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-2|3|5|7|9-11|12-15|16|17|18|19|20|21-24|25-26|27-28}{maxHeight:'300px'}
+import zio.*
+import zio.json.*
+import zio.lmdb.*
+
+val collectionName = "elements"
+
+val program =
+  for
+    _              <- LMDB.collectionExists(
+                        collectionName
+                      ) @@ ZIOAspect.logged(s"Checking whether collection $collectionName exists")
+    elements       <- LMDB.collectionCreate[Element](
+                        collectionName,
+                        failIfExists = false
+                      ) @@ ZIOAspect.logged(s"Created collection $collectionName")
+    _              <- LMDB.collectionsAvailable() @@ ZIOAspect.logged("Available collections")
+    _              <- loadElementsFromCSV(elements)
+    collected      <- elements.collect() @@ ZIOAspect.logged(s"Collected all $collectionName")
+    collectionSize <- elements.size() @@ ZIOAspect.logged(s"Number of collected $collectionName")
+    _              <- ZIO.foreach(collected)(Console.printLine(_))
+    filtered       <- elements.collect(
+                        keyFilter = _.startsWith("H"),
+                        valueFilter = _.meltingTemp < -15
+                      ) @@ ZIOAspect.logged(s"Filtered $collectionName")
+    _              <- ZIO.log(s"Clearing collection $collectionName")
+    _              <- elements.clear()
+    _              <- ZIO.log(s"Dropping collection $collectionName")
+    _              <- LMDB.collectionDrop(collectionName)
+  yield ()
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Loading elements from CSV
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-2|3-4|5-6|7-8|9|11|13-17|19-22|23-30|24-25|26|27|28|29|30}{maxHeight:'300px'}
+import zio.*
+import zio.json.*
+import zio.lmdb.*
+import zio.lmdb.StorageUserError.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z.*
+import info.fingo.spata.{ CSVParser, Record }
+import info.fingo.spata.io.Reader
+import java.nio.file.Paths
+
+val fahrenheitCSV = "testdata/elements-fahrenheit.csv"
+
+val csvParser: fs2.Pipe[Task, Char, Record] =
+  CSVParser.config
+    .mapHeader(Map("melting temperature [F]" -> "meltingTemp", "boiling temperature [F]" -> "boilingTemp"))
+    .parser[Task]
+    .parse
+
+def loadElementsFromCSV(elements: LMDBCollection[Element]): IO[
+  CollectionNotFound | JsonFailure | StorageSystemError | Throwable | OverSizedKey | Option[FetchErrors],
+  Unit
+] =
+  ZIO.log(s"Processing $fahrenheitCSV")
+    *> Reader[Task]
+      .read(Paths.get(fahrenheitCSV))
+      .through(csvParser)
+      .toZStream()
+      .mapZIO(record => ZIO.fromEither(record.to[Element]))
+      .mapZIO(processElement)
+      .runDrain
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Loading elements from CSV
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|4|5-7|8|9-12,2}{maxHeight:'300px'}
+def processElement(element: Element): IO[UpsertErrors | Option[FetchErrors], Option[Element]] =
+  def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
+
+  elements.upsertOverwrite(element.symbol, element)
+    *> elements.contains(element.symbol) @@ ZIOAspect.logged(
+      s"Checking whether ${elements.name} contains ${element.symbol}"
+    )
+    *> elements.fetch(element.symbol).some @@ ZIOAspect.logged("Found element")
+    *> elements.update(
+      element.symbol,
+      _.updateTemps(fahrenheitToCelsius)
+    ) @@ ZIOAspect.logged("Updated element")
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Providing layers
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|4|6-10|8|9}{maxHeight:'300px'}
+object ZioLmdbExample extends ZIOAppDefault:
+  ...
+
+  val program = ...
+
+  override def run =
+    program.provide(
+      LMDB.liveWithDatabaseName("elements-database"),
+      Scope.default
+    )
 
 ```
 </div>
