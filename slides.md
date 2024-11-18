@@ -1134,7 +1134,7 @@ layout: default
 ## **Example without TranzactIO** - Running queries
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-6|8|9-19|11|12|13|14|15-16|17-18|19|21-33}{maxHeight:'300px'}
+```scala {1-6|8|9-19|11|12|13|14|15-16|17-18|19}{maxHeight:'300px'}
 import zio.*
 import zio.stream.*
 import zio.interop.catz.*
@@ -1143,8 +1143,8 @@ import doobie.implicits.*
 import doobie.h2.H2Transactor
 
 object DoobieExample extends ZIOAppDefault:
-  val run =
-    (for
+  val program: RIO[Transactor[Task], Unit] =
+    for
       _                 <- Repository.create
       numberOfSuppliers <- Repository.insertSuppliers(suppliers)
       numberOfCoffees   <- Repository.insertCoffees(coffees)
@@ -1153,7 +1153,21 @@ object DoobieExample extends ZIOAppDefault:
       _                 <- ZStream.fromIterableZIO(Repository.allCoffees).mapZIO(Console.printLine(_)).runDrain
       _                 <- ZIO.log("Getting cheap coffees")
       _                 <- ZStream.fromIterableZIO(Repository.coffeesLessThan(9.0)).mapZIO(Console.printLine(_)).runDrain
-    yield ()).provideLayer(transactorLayer)
+    yield ()
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## **Example without TranzactIO** - Providing layers
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-2|4-16|9|10|11|12|18}{maxHeight:'300px'}
+object DoobieExample extends ZIOAppDefault:
+  val program: RIO[Transactor[Task], Unit] = ...
 
   val transactorLayer: TaskLayer[Transactor[Task]] =
     ZLayer.scoped {
@@ -1168,6 +1182,8 @@ object DoobieExample extends ZIOAppDefault:
           .toScopedZIO
       }
     }
+
+  val run = program.provide(transactorLayer)
 ```
 </div>
 
@@ -1176,7 +1192,7 @@ transition: slide-left
 layout: default
 ---
 
-## **Example without TranzactIO** - Combining queries into transactions
+### **Example without TranzactIO** - Combining queries into transactions
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {1|4-5|7-8|10-14}{maxHeight:'300px'}
@@ -1202,10 +1218,10 @@ transition: slide-left
 layout: default
 ---
 
-## **Example without TranzactIO** - Combining queries into transactions
+### **Example without TranzactIO** - Combining queries into transactions
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2-3|7-8}{maxHeight:'300px'}
+```scala {1|7-8}{maxHeight:'300px'}
 object Repository:
   extension [A](connectionIO: ConnectionIO[A])
     def transactZIO: RIO[Transactor[Task], A] = ZIO.serviceWithZIO[Transactor[Task]](connectionIO.transact)
@@ -1222,7 +1238,7 @@ transition: slide-left
 layout: default
 ---
 
-## **Example without TranzactIO** - Combining queries into transactions
+### **Example without TranzactIO** - Combining queries into transactions
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {1|4-13|7}{maxHeight:'300px'}
@@ -1239,6 +1255,118 @@ object DoobieExampleWithTransactions extends ZIOAppDefault:
       _                                    <- ZIO.log("Getting cheap coffees")
       _                                    <- ZStream.fromIterableZIO(Repository.coffeesLessThan(9.0)).mapZIO(Console.printLine(_)).runDrain
     yield ()).provideLayer(transactorLayer)
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-2|5-6|8-9|11-12|14-15|17-18}{maxHeight:'300px'}
+import io.github.gaelrenoux.tranzactio.*
+import io.github.gaelrenoux.tranzactio.doobie.*
+
+object Repository:
+  def coffeesLessThan(price: Double): TranzactIO[List[(String, String)]] =
+    tzio(Queries.coffeesLessThan(price))
+
+  def insertSuppliers(suppliers: List[Supplier]): TranzactIO[Int] =
+    tzio(Queries.insertSuppliers(suppliers))
+
+  def insertCoffees(coffees: List[Coffee]): TranzactIO[Int] =
+    tzio(Queries.insertCoffees(coffees))
+
+  val allCoffees: TranzactIO[List[Coffee]] =
+    tzio(Queries.allCoffees)
+
+  val create: TranzactIO[Unit] =
+    tzio(Queries.create).unit
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3}{maxHeight:'300px'}
+type TranzactIO[A] = ZIO[Connection, DbException, A]
+type Connection    = Transactor[Task]
+type TranzactIO[A] = ZIO[Transactor[Task], DbException, A]
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## **Example with TranzactIO** - Running queries
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-3|4-5|6-7|8|10|14|15|16|17|18-22|23|24-27}{maxHeight:'300px'}
+import zio.*
+import zio.stream.*
+import zio.interop.catz.*
+import doobie.*
+import doobie.implicits.*
+import io.github.gaelrenoux.tranzactio.*
+import io.github.gaelrenoux.tranzactio.doobie.*
+import org.h2.jdbcx.JdbcDataSource
+
+object TranzactioExample extends ZIOAppDefault:
+
+  val program: ZIO[Database, DbException, Unit] =
+    for
+      _                 <- Database.transactionOrDie(Repository.create)
+      numberOfSuppliers <- Database.transactionOrDie(Repository.insertSuppliers(suppliers))
+      numberOfCoffees   <- Database.transactionOrDie(Repository.insertCoffees(coffees))
+      _                 <- ZIO.log(s"Inserted $numberOfSuppliers suppliers and $numberOfCoffees coffees")
+      _                 <- ZIO.log("Getting all coffees")
+      _                 <- ZStream
+                             .fromIterableZIO(Database.transactionOrDie(Repository.allCoffees))
+                             .mapZIO(coffee => Console.printLine(coffee).orDie)
+                             .runDrain
+      _                 <- ZIO.log("Getting cheap coffees")
+      _                 <- ZStream
+                             .fromIterableZIO(Database.transactionOrDie(Repository.coffeesLessThan(9.0)))
+                             .mapZIO(coffee => Console.printLine(coffee).orDie)
+                             .runDrain
+    yield ()
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## **Example with TranzactIO** - Providing layers
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-2|4|6-13|9|10|11}{maxHeight:'300px'}
+object TranzactioExample extends ZIOAppDefault:
+  val program: ZIO[Database, DbException, Unit] = ...
+
+  val run = program.provide(Database.fromDatasource, dataSourceLayer)
+
+  val dataSourceLayer =
+    ZLayer.succeed {
+      val dataSource = JdbcDataSource()
+      dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1")
+      dataSource.setUser("sa")
+      dataSource.setPassword("")
+      dataSource
+    }
 ```
 </div>
 
