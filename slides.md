@@ -73,6 +73,15 @@ image: ./agenda.jpg
 
 ---
 transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/cageLetsGo.gif" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
 layout: cover
 ---
 
