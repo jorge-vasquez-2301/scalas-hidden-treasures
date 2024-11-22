@@ -1457,12 +1457,25 @@ image: /summary.jpg
 
 ## **Summary**
 
-<div class="mt-4 flex h-3/5 w-full items-center">
+<div class="mt-4 flex h-4/5 w-full items-center">
   <ul>
-    <li v-click>We have seen 5 libraries for data-processing in Scala 3</li>
-    <li v-click>Some of them are ZIO-native, like zio-apache-parquet and zio-lmdb</li>
-    <li v-click>YAML4s provides direct support for ZIO JSON</li>
-    <li v-click>Others like Spata, YAML4s</li>
+    <li v-click>We have seen <b>5 libraries</b> for data-processing in Scala 3, compatible with <code>ZIO</code>/<code>ZStream</code></li>
+    <li v-click>You can seamlessly do <b>CSV</b>, <b>Parquet</b> and <b>YAML</b> processing, thanks to <b>Spata</b>, <b>zio-apache-parquet</b> and <b>yaml4s</b></li>
+  </ul>
+</div>
+
+---
+transition: slide-left
+layout: image-right
+image: /summary.jpg
+---
+
+## **Summary**
+
+<div class="mt-4 flex h-4/5 w-full items-center">
+  <ul>
+    <li v-click>You can integrate high-performance embedded key-value stores with <b>zio-lmdb</b> into your applications</li>
+    <li v-click><b>TranzactIO</b> allows you to lift <code>ConnectionIO</code> from Doobie into <code>ZIO</code>/<code>ZStream</code> and do everything at the ZIO level, including transactions</li>
   </ul>
 </div>
 
@@ -1474,12 +1487,13 @@ image: /learn.jpg
 
 ## **Where to learn more**
 
-<div class="flex h-3/5 w-full items-center">
+<div class="flex h-4/5 w-full items-center">
   <ul>
-    <li v-click><a href="https://github.com/zio" target="_blank">ZIO en GitHub</a></li>
-    <li v-click><a href="https://zio.dev/" target="_blank">Sitio oficial de ZIO</a></li>
-    <li v-click><a href="https://www.zionomicon.com/" target="_blank">Zionomicon</a></li>
-    <li v-click><a href="https://jorgevasquez.blog/" target="_blank">Mi nuevo blog personal (jorgevasquez.blog)</a></li>
+    <li v-click><a href="https://github.com/fingo/spata" target="_blank">Spata repo</a></li>
+    <li v-click><a href="https://github.com/grouzen/zio-apache-parquet" target="_blank">zio-apache-parquet repo</a></li>
+    <li v-click><a href="https://github.com/hnaderi/yaml4s" target="_blank">yaml4s repo</a></li>
+    <li v-click><a href="https://github.com/dacr/zio-lmdb" target="_blank">zio-lmdb repo</a></li>
+    <li v-click><a href="https://github.com/gaelrenoux/tranzactio" target="_blank">Tranzactio repo</a></li>
   </ul>
 </div>
 
