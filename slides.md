@@ -100,6 +100,15 @@ transition: slide-left
 layout: default
 ---
 
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/inAction.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
 ## **Example:** Chemical Elements CSV
 
 <div class="flex h-4/5 w-full items-center">
@@ -208,7 +217,16 @@ transition: slide-left
 layout: default
 ---
 
-## Define a `CSVParser`
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/customizeParser.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Customizing the `CSVParser`
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {5-10|6|7|8|9|12-15|13|14|15|17}{maxHeight:'300px'}
@@ -259,7 +277,16 @@ transition: slide-left
 layout: default
 ---
 
-## Define a `CSVRenderer`
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/customRenderer.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Customizing the `CSVRenderer`
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {5-10|6|7|8|9|12-16|13|14|15|16|18}{maxHeight:'300px'}
@@ -332,6 +359,42 @@ object SpataExample extends ZIOAppDefault:
       *> processor.compile.drain
 
 ```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/bean.gif" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/evenBetter.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/macros.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/zioSchema.jpg" class="h-70 rounded-md"/></div>
 </div>
 
 ---
