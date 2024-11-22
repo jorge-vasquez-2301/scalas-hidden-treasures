@@ -1245,8 +1245,8 @@ layout: default
 object DoobieExampleWithTransactions extends ZIOAppDefault:
   ...
 
-  val run =
-    (for
+  val program =
+    for
       _                                    <- Repository.create
       (numberOfSuppliers, numberOfCoffees) <- Repository.insertSuppliersAndCoffees(suppliers, coffees)
       _                                    <- ZIO.log(s"Inserted $numberOfSuppliers suppliers and $numberOfCoffees coffees")
@@ -1254,7 +1254,7 @@ object DoobieExampleWithTransactions extends ZIOAppDefault:
       _                                    <- ZStream.fromIterableZIO(Repository.allCoffees).mapZIO(Console.printLine(_)).runDrain
       _                                    <- ZIO.log("Getting cheap coffees")
       _                                    <- ZStream.fromIterableZIO(Repository.coffeesLessThan(9.0)).mapZIO(Console.printLine(_)).runDrain
-    yield ()).provideLayer(transactorLayer)
+    yield ()
 ```
 </div>
 
@@ -1344,6 +1344,39 @@ object TranzactioExample extends ZIOAppDefault:
     yield ()
 ```
 </div>
+
+---
+transition: slide-left
+layout: default
+---
+
+### **Example with TranzactIO** - Combining queries into transactions
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|4-23|7-11}{maxHeight:'300px'}
+object TranzactioExampleWithTransactions extends ZIOAppDefault:
+  ...
+
+  val program: ZIO[Database, DbException, Unit] =
+    for
+      _                                    <- Database.transactionOrDie(Repository.create)
+      (numberOfSuppliers, numberOfCoffees) <- Database.transactionOrDie {
+                                                Repository.insertSuppliers(suppliers) <*> Repository.insertCoffees(
+                                                  coffees
+                                                )
+                                              }
+      _                                    <- ZIO.log(s"Inserted $numberOfSuppliers suppliers and $numberOfCoffees coffees")
+      _                                    <- ZIO.log("Getting all coffees")
+      _                                    <- ZStream
+                                                .fromIterableZIO(Database.transactionOrDie(Repository.allCoffees))
+                                                .mapZIO(coffee => Console.printLine(coffee).orDie)
+                                                .runDrain
+      _                                    <- ZIO.log("Getting cheap coffees")
+      _                                    <- ZStream
+                                                .fromIterableZIO(Database.transactionOrDie(Repository.coffeesLessThan(9.0)))
+                                                .mapZIO(coffee => Console.printLine(coffee).orDie)
+                                                .runDrain
+    yield ()
 
 ---
 transition: slide-left
