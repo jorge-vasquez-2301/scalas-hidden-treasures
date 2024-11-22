@@ -382,6 +382,7 @@ layout: default
     <li v-click>Leverages <b>ZIO Schema Derivation</b> to automatically derive codecs</li>
     <li v-click>Leverages <b>ZIO Schema Accessors</b> to provide type-safe filter predicates</li>
     <li v-click><b>No Spark required</b> to read/write Parquet files</li>
+    <li v-click>Supports <b>streaming</b></li>
   </ul>
 </div>
 
@@ -493,7 +494,7 @@ layout: default
 ## Working with Parquet
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-2|3-6|7-12|14-19|21-28|30|33-34|35-40|41-43|44-45|46-52|50|53-54}{maxHeight:'300px'}
+```scala {1-2|3-6|7-12|14-19|21-28|30|33-34|35-40|41-43|44-45|46-47|48-54|55-61|62-63}{maxHeight:'300px'}
 import info.fingo.spata.{ CSVRenderer, Record }
 import info.fingo.spata.io.Writer
 import me.mnedokushev.zio.apache.parquet.core.hadoop.{ ParquetReader, ParquetWriter, Path }
@@ -514,7 +515,7 @@ val csvRenderer: fs2.Pipe[Eff, Record, Char] =
     .renderer[Eff]
     .render
 
-def writeToCsv(stream: ZStream[Scope, Throwable, Element], path: java.nio.file.Path) =
+def writeStreamToCsv(stream: ZStream[Scope, Throwable, Element], path: java.nio.file.Path) =
   stream
     .map(_.toRecord)
     .toFs2Stream
@@ -537,9 +538,18 @@ val processor: RIO[ParquetWriter[Element] & ParquetReader[Element], Unit] =
       _                      <- ZIO.serviceWithZIO[ParquetWriter[Element]] {
                                   _.writeStream(elementsCelsiusParquetFile, readFromCsvAndProcess)
                                 }
-      _                      <- ZIO.log(s"Reading all elements from $elementsCelsiusParquetFile")
+      _                      <- ZIO.log(s"Reading all elements from $elementsCelsiusParquetFile, as a Chunk")
+      allElementsChunk       <- ZIO.serviceWith[ParquetReader[Element]](_.readChunk(elementsCelsiusParquetFile))
+      _                      <- ZIO.log(s"Reading all elements from $elementsCelsiusParquetFile, as a ZStream")
       allElementsStream      <- ZIO.serviceWith[ParquetReader[Element]](_.readStream(elementsCelsiusParquetFile))
-      _                      <- ZIO.log(s"Reading and Filtering elements from $elementsCelsiusParquetFile")
+      _                      <- ZIO.log(s"Reading and filtering elements from $elementsCelsiusParquetFile, as a Chunk")
+      filteredElementsChunk  <- ZIO.serviceWith[ParquetReader[Element]] {
+                                  _.readChunkFiltered(
+                                    elementsCelsiusParquetFile,
+                                    filter(Element.element =!= "hydrogen" `and` Element.meltingTemp > 0)
+                                  )
+                                }
+      _                      <- ZIO.log(s"Reading and filtering elements from $elementsCelsiusParquetFile, as a ZStream")
       filteredElementsStream <- ZIO.serviceWith[ParquetReader[Element]] {
                                   _.readStreamFiltered(
                                     elementsCelsiusParquetFile,
@@ -547,7 +557,7 @@ val processor: RIO[ParquetWriter[Element] & ParquetReader[Element], Unit] =
                                   )
                                 }
       _                      <- ZIO.log(s"Writing filtered elements to $elementsCelsiusFilteredCSVFile")
-      _                      <- writeToCsv(filteredElementsStream, elementsCelsiusFilteredCSVFile)
+      _                      <- writeStreamToCsv(filteredElementsStream, elementsCelsiusFilteredCSVFile)
     yield ()
   }
 ```
@@ -777,6 +787,7 @@ layout: default
     <li v-click>Based on the <b>lmdb-java</b> library, it brings a higher-level ZIO API</li>
     <li v-click>JSON based storage using <b>zio-json</b></li>
     <li v-click>Very precise error management thanks to <b>Union Types</b></li>
+    <li v-click>Supports <b>streaming</b></li>
   </ul>
 </div>
 
@@ -820,7 +831,7 @@ layout: default
 ## Playing with **ZIO-LMDB**
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-2|3|5|7|9-11|12-15|16|17|18|19|20|21-24|25-26|27-28}{maxHeight:'300px'}
+```scala {1-2|3|5|7|9-11|12-15|16|17|18|19|20|21-24|25-26|27-28|29-30|31-32}{maxHeight:'300px'}
 import zio.*
 import zio.json.*
 import zio.lmdb.*
@@ -829,26 +840,30 @@ val collectionName = "elements"
 
 val program =
   for
-    _              <- LMDB.collectionExists(
-                        collectionName
-                      ) @@ ZIOAspect.logged(s"Checking whether collection $collectionName exists")
-    elements       <- LMDB.collectionCreate[Element](
-                        collectionName,
-                        failIfExists = false
-                      ) @@ ZIOAspect.logged(s"Created collection $collectionName")
-    _              <- LMDB.collectionsAvailable() @@ ZIOAspect.logged("Available collections")
-    _              <- loadElementsFromCSV(elements)
-    collected      <- elements.collect() @@ ZIOAspect.logged(s"Collected all $collectionName")
-    collectionSize <- elements.size() @@ ZIOAspect.logged(s"Number of collected $collectionName")
-    _              <- ZIO.foreach(collected)(Console.printLine(_))
-    filtered       <- elements.collect(
-                        keyFilter = _.startsWith("H"),
-                        valueFilter = _.meltingTemp < -15
-                      ) @@ ZIOAspect.logged(s"Filtered $collectionName")
-    _              <- ZIO.log(s"Clearing collection $collectionName")
-    _              <- elements.clear()
-    _              <- ZIO.log(s"Dropping collection $collectionName")
-    _              <- LMDB.collectionDrop(collectionName)
+    _                    <- LMDB.collectionExists(
+                              collectionName
+                            ) @@ ZIOAspect.logged(s"Checking whether collection $collectionName exists")
+    elements             <- LMDB.collectionCreate[Element](
+                              collectionName,
+                              failIfExists = false
+                            ) @@ ZIOAspect.logged(s"Created collection $collectionName")
+    _                    <- LMDB.collectionsAvailable() @@ ZIOAspect.logged("Available collections")
+    _                    <- loadElementsFromCSV(elements)
+    collected            <- elements.collect() @@ ZIOAspect.logged(s"Collected all $collectionName")
+    collectionSize       <- elements.size() @@ ZIOAspect.logged(s"Number of collected $collectionName")
+    _                    <- ZIO.foreach(collected)(Console.printLine(_))
+    filtered             <- elements.collect(
+                              keyFilter = _.startsWith("H"),
+                              valueFilter = _.meltingTemp < -15
+                            ) @@ ZIOAspect.logged(s"Filtered $collectionName")
+    _                    <- ZIO.logInfo(s"Creating stream of elements for $collectionName")
+    elementsStream        = elements.stream()
+    _                    <- ZIO.logInfo(s"Creating stream of elements for $collectionName, including keys")
+    symbolToElementStream = elements.streamWithKeys()
+    _                    <- ZIO.log(s"Clearing collection $collectionName")
+    _                    <- elements.clear()
+    _                    <- ZIO.log(s"Dropping collection $collectionName")
+    _                    <- LMDB.collectionDrop(collectionName)
   yield ()
 
 ```
@@ -963,6 +978,7 @@ layout: default
   <ul>
     <li v-click><b>TranzactIO</b> is a ZIO wrapper for some Scala database access libraries</li>
     <li v-click><b>Doobie</b> and <b>Anorm</b>, for now</li>
+    <li v-click>Supports <b>streaming</b></li>
   </ul>
 </div>
 
@@ -1014,7 +1030,7 @@ layout: default
 ## **Example without TranzactIO** - Definining queries
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-2|4|5-10|12-13|15-16|18-19|21-30|31-40}{maxHeight:'300px'}
+```scala {1-2|4|5-10|12-13|15-16|18-19|21-23|24-33|34-43}{maxHeight:'300px'}
 import doobie.*
 import doobie.implicits.*
 
@@ -1034,6 +1050,9 @@ object Queries:
 
   val allCoffees: ConnectionIO[List[Coffee]] =
     sql"SELECT cof_name, sup_id, price, sales, total FROM coffees".query[Coffee].to[List]
+
+  val allCoffeesStream: fs2.Stream[ConnectionIO, Coffee] =
+    sql"SELECT cof_name, sup_id, price, sales, total FROM coffees".query[Coffee].stream  
 
   val create: ConnectionIO[Int] =
     sql"""
@@ -1064,13 +1083,16 @@ transition: slide-left
 layout: default
 ---
 
-### **Example without TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+### **Example without TranzactIO** - Transforming `ConnectionIO` to `ZIO`/`ZStream`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-3|5|6-7|9-10|12-13|15-16|18-19}{maxHeight:'300px'}
+```scala {1-6|8|9-10|12-13|15-16|18-19|21-24|26-27}{maxHeight:'300px'}
 import doobie.*
 import doobie.implicits.*
 import zio.*
+import zio.stream.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z.*
 
 object Repository:
   def coffeesLessThan(price: Double): RIO[Transactor[Task], List[(String, String)]] =
@@ -1085,6 +1107,11 @@ object Repository:
   val allCoffees: RIO[Transactor[Task], List[Coffee]] =
     ZIO.serviceWithZIO[Transactor[Task]](Queries.allCoffees.transact(_))
 
+  val allCoffeesStream: ZStream[Transactor[Task], Throwable, Coffee] =
+    ZStream.serviceWithStream[Transactor[Task]] { transactor =>
+      Queries.allCoffeesStream.transact(transactor).toZStream()
+    }
+
   val create: RIO[Transactor[Task], Unit] =
     ZIO.serviceWithZIO[Transactor[Task]](Queries.create.transact(_)).unit
 
@@ -1096,17 +1123,26 @@ transition: slide-left
 layout: default
 ---
 
-### **Example without TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+### **Example without TranzactIO** - Transforming `ConnectionIO` to `ZIO`/`ZStream`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-3|5|6-7|9-10|12-13|15-16|18-19}{maxHeight:'300px'}
+```scala {1-6|8|9-10|12-16|18-19|21-22|24-25|27-28|30-31|33-34}{maxHeight:'300px'}
 import doobie.*
 import doobie.implicits.*
 import zio.*
+import zio.stream.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z.*
 
 object Repository:
   extension [A](connectionIO: ConnectionIO[A])
     def transactZIO: RIO[Transactor[Task], A] = ZIO.serviceWithZIO[Transactor[Task]](connectionIO.transact(_))
+
+  extension [A](connectionIOStream: fs2.Stream[ConnectionIO, A])
+    def transactZStream: ZStream[Transactor[Task], Throwable, A] =
+      ZStream.serviceWithStream[Transactor[Task]] { transactor =>
+        connectionIOStream.transact(transactor).toZStream()
+      }
 
   def coffeesLessThan(price: Double): RIO[Transactor[Task], List[(String, String)]] =
     Queries.coffeesLessThan(price).transactZIO
@@ -1119,6 +1155,9 @@ object Repository:
 
   val allCoffees: RIO[Transactor[Task], List[Coffee]] =
     Queries.allCoffees.transactZIO
+
+  val allCoffeesStream: ZStream[Transactor[Task], Throwable, Coffee] =
+    Queries.allCoffeesStream.transactZStream
 
   val create: RIO[Transactor[Task], Unit] =
     Queries.create.transactZIO.unit
@@ -1134,7 +1173,7 @@ layout: default
 ## **Example without TranzactIO** - Running queries
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-6|8|9-19|11|12|13|14|15-16|17-18|19}{maxHeight:'300px'}
+```scala {1-6|8|9-19|11|12|13|14|15-16|17-18|19-20}{maxHeight:'300px'}
 import zio.*
 import zio.stream.*
 import zio.interop.catz.*
@@ -1151,6 +1190,8 @@ object DoobieExample extends ZIOAppDefault:
       _                 <- ZIO.log(s"Inserted $numberOfSuppliers suppliers and $numberOfCoffees coffees")
       _                 <- ZIO.log("Getting all coffees")
       _                 <- ZStream.fromIterableZIO(Repository.allCoffees).mapZIO(Console.printLine(_)).runDrain
+      _                 <- ZIO.log("Getting all coffees as ZStream")
+      _                 <- Repository.allCoffeesStream.mapZIO(Console.printLine(_)).runDrain
       _                 <- ZIO.log("Getting cheap coffees")
       _                 <- ZStream.fromIterableZIO(Repository.coffeesLessThan(9.0)).mapZIO(Console.printLine(_)).runDrain
     yield ()
@@ -1266,7 +1307,7 @@ layout: default
 ### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-2|5-6|8-9|11-12|14-15|17-18}{maxHeight:'300px'}
+```scala {1-2|5-6|8-9|11-12|14-15|17-18|20-21}{maxHeight:'300px'}
 import io.github.gaelrenoux.tranzactio.*
 import io.github.gaelrenoux.tranzactio.doobie.*
 
@@ -1283,6 +1324,9 @@ object Repository:
   val allCoffees: TranzactIO[List[Coffee]] =
     tzio(Queries.allCoffees)
 
+  val allCoffeesStream: TranzactIOStream[Coffee] =
+    tzioStream(Queries.allCoffeesStream)
+
   val create: TranzactIO[Unit] =
     tzio(Queries.create).unit
 
@@ -1297,11 +1341,12 @@ layout: default
 ### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3}{maxHeight:'300px'}
+```scala {1|2|3|4|5}{maxHeight:'300px'}
 type TranzactIO[A] = ZIO[Connection, DbException, A]
 type Connection    = Transactor[Task]
 type TranzactIO[A] = ZIO[Transactor[Task], DbException, A]
-
+type TranzactIOSream[A] = ZStream[Connection, DbException, A]
+type TranzactIOSream[A] = ZStream[Transactor[Task], DbException, A]
 ```
 </div>
 
@@ -1313,7 +1358,7 @@ layout: default
 ## **Example with TranzactIO** - Running queries
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-3|4-5|6-7|8|10|14|15|16|17|18-22|23|24-27}{maxHeight:'300px'}
+```scala {1-3|4-5|6-7|8|10|14|15|16|17|18-22|23-24|25-29}{maxHeight:'300px'}
 import zio.*
 import zio.stream.*
 import zio.interop.catz.*
@@ -1325,7 +1370,7 @@ import org.h2.jdbcx.JdbcDataSource
 
 object TranzactioExample extends ZIOAppDefault:
 
-  val program: ZIO[Database, DbException, Unit] =
+  val program: ZIO[Database, Throwable, Unit] =
     for
       _                 <- Database.transactionOrDie(Repository.create)
       numberOfSuppliers <- Database.transactionOrDie(Repository.insertSuppliers(suppliers))
@@ -1336,6 +1381,8 @@ object TranzactioExample extends ZIOAppDefault:
                              .fromIterableZIO(Database.transactionOrDie(Repository.allCoffees))
                              .mapZIO(coffee => Console.printLine(coffee).orDie)
                              .runDrain
+      _                 <- ZIO.log("Getting all coffees as ZStream")
+      _                 <- Database.transactionOrDieStream(Repository.allCoffeesStream).mapZIO(Console.printLine(_)).runDrain
       _                 <- ZIO.log("Getting cheap coffees")
       _                 <- ZStream
                              .fromIterableZIO(Database.transactionOrDie(Repository.coffeesLessThan(9.0)))
@@ -1353,7 +1400,7 @@ layout: default
 ### **Example with TranzactIO** - Combining queries into transactions
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|4-23|7-11}{maxHeight:'300px'}
+```scala {1|4-23|7-10}{maxHeight:'300px'}
 object TranzactioExampleWithTransactions extends ZIOAppDefault:
   ...
 
@@ -1361,9 +1408,8 @@ object TranzactioExampleWithTransactions extends ZIOAppDefault:
     for
       _                                    <- Database.transactionOrDie(Repository.create)
       (numberOfSuppliers, numberOfCoffees) <- Database.transactionOrDie {
-                                                Repository.insertSuppliers(suppliers) <*> Repository.insertCoffees(
-                                                  coffees
-                                                )
+                                                Repository.insertSuppliers(suppliers)
+                                                  <*> Repository.insertCoffees(coffees)
                                               }
       _                                    <- ZIO.log(s"Inserted $numberOfSuppliers suppliers and $numberOfCoffees coffees")
       _                                    <- ZIO.log("Getting all coffees")
@@ -1413,24 +1459,10 @@ image: /summary.jpg
 
 <div class="mt-4 flex h-3/5 w-full items-center">
   <ul>
-    <li v-click>La <b>Programación Funcional</b> no es un tema sólo para entornos académicos</li>
-    <li v-click>La <b>Programación Funcional</b> permite construir aplicaciones completas en el mundo real</li>
-  </ul>
-</div>
-
----
-transition: slide-left
-layout: image-right
-image: /summary.jpg
----
-
-## **Summary**
-
-<div class="mt-4 flex h-4/5 w-full items-center">
-  <ul>
-    <li v-click><b>ZIO</b> es una librería para Scala que permite construir aplicaciones asíncronas, concurrentes, resilientes, eficientes, fáciles de entender y testear</li>
-    <li v-click>Existe todo un <b>ecosistema de librerías</b> alrededor de ZIO para diversas situaciones</li>
-    <li v-click><b>ZIO HTTP</b> permite implementar servidores REST, autogenerar clientes, documentación y CLIs</li>
+    <li v-click>We have seen 5 libraries for data-processing in Scala 3</li>
+    <li v-click>Some of them are ZIO-native, like zio-apache-parquet and zio-lmdb</li>
+    <li v-click>YAML4s provides direct support for ZIO JSON</li>
+    <li v-click>Others like Spata, YAML4s</li>
   </ul>
 </div>
 
