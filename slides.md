@@ -453,9 +453,27 @@ layout: default
     <li v-click><b>ZIO-powered</b> wrapper for Apache Parquet's Java implementation</li>
     <li v-click>Leverages <b>ZIO Schema Derivation</b> to automatically derive codecs</li>
     <li v-click>Leverages <b>ZIO Schema Accessors</b> to provide type-safe filter predicates</li>
-    <li v-click><b>No Spark required</b> to read/write Parquet files</li>
+    <li v-click><b>Spark is not required</b> to read/write Parquet files</li>
     <li v-click>Supports <b>streaming</b></li>
   </ul>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/notRequired.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/picard.jpg" class="h-70 rounded-md"/></div>
 </div>
 
 ---
