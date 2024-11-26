@@ -1,11 +1,3 @@
-# Welcome to [Slidev](https://github.com/slidevjs/slidev)!
+# Scala's Hidden Treasures: Five ZIO-Compatible Libraries you didn't know you needed!
 
-To start the slide show:
-
-- `npm install`
-- `npm run dev`
-- visit <http://localhost:3030>
-
-Edit the [slides.md](./slides.md) to see the changes.
-
-Learn more about Slidev at the [documentation](https://sli.dev/).
+Slides for presentation at Functional Scala 2024
