@@ -177,7 +177,7 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|8|10-14|16-17|17}{maxHeight:'300px'}
+```scala {1|2|3|4|5|6|8|10-14}{maxHeight:'300px'}
 //> using jvm graalvm-java23:23.0.0
 //> using scala 3.5.2
 //> using dep info.fingo::spata:3.2.1
@@ -192,9 +192,6 @@ final case class Element(element: String, symbol: String, meltingTemp: Double, b
 
   def updateTemps(f: Double => Double) =
     self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
-
-object Element:
-  given Schema.Record[Element] = DeriveSchema.gen[Element]
 
 ```
 </div>
@@ -414,7 +411,7 @@ layout: default
 ### Converting a case class to a CSV `Record` using **ZIO Schema**
 
 <div class="flex h-4/5 w-full items-center">
-```scala {4-11|11|13-15|14|15}{maxHeight:'300px'}
+```scala {4-11|11}{maxHeight:'300px'}
 import info.fingo.spata.Record
 import zio.schema.*
 
@@ -425,6 +422,31 @@ final case class Element(element: String, symbol: String, meltingTemp: Double, b
     self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
 
 object Element:
+  given Schema[Element] = DeriveSchema.gen[Element]
+
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+### Converting a case class to a CSV `Record` using **ZIO Schema**
+
+<div class="flex h-4/5 w-full items-center">
+```scala {11-12|14-16|15|16}{maxHeight:'300px'}
+import info.fingo.spata.Record
+import zio.schema.*
+
+final case class Element(element: String, symbol: String, meltingTemp: Double, boilingTemp: Double):
+  self =>
+
+  def updateTemps(f: Double => Double) =
+    self.copy(meltingTemp = f(self.meltingTemp), boilingTemp = f(self.boilingTemp))
+
+object Element:
+  // I can use a more specific type, because DeriveSchema.gen is a transparent macro!
   given Schema.Record[Element] = DeriveSchema.gen[Element]
 
 extension [A](a: A)
@@ -693,7 +715,7 @@ layout: default
 
 <div class="mt-4 flex h-4/5 w-full items-center gap-5 text-justify">
   <ul>
-    <li v-click><b>yaml4s</b> allows to parse a YAML string as a `YAML` data type or Json</li>
+    <li v-click><b>yaml4s</b> allows to parse a <b>YAML string</b> as a `YAML` data type or Json</li>
     <li v-click>
       To parse <b>YAML as Json</b>, several libraries are supported
        <ul>
@@ -705,6 +727,15 @@ layout: default
       </ul>
     </li>
   </ul>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/picardInAction.jpg" class="h-70 rounded-md"/></div>
 </div>
 
 ---
@@ -831,7 +862,7 @@ object Yaml4sExample extends ZIOAppDefault:
       .runCollect
       .map(_.mkString)
 
-  def printFile(contents: String, fileName: String): Task[Long] =
+  def writeFile(contents: String, fileName: String): Task[Long] =
     ZStream(contents)
       .via(ZPipeline.utf8Encode)
       .run(ZSink.fromFileName(fileName))
@@ -850,7 +881,7 @@ object Yaml4sExample extends ZIOAppDefault:
       filteredPeopleJson   <- ZIO.fromEither(filteredPeople.toJsonAST)
       filteredPeopleYamlStr = Backend.print(filteredPeopleJson)
       _                    <- ZIO.log(s"Writing $filteredPeopleYaml")
-      _                    <- printFile(filteredPeopleYamlStr, filteredPeopleYaml)
+      _                    <- writeFile(filteredPeopleYamlStr, filteredPeopleYaml)
     yield ()
 
 ```
@@ -879,6 +910,15 @@ layout: default
     <li v-click>Very precise error management thanks to <b>Union Types</b></li>
     <li v-click>Supports <b>streaming</b></li>
   </ul>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/letsDoThis.gif" class="h-70 rounded-md"/></div>
 </div>
 
 ---
@@ -1077,6 +1117,15 @@ transition: slide-left
 layout: default
 ---
 
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/beanDoubt.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
 ## **Example without TranzactIO** - Data modelling
 
 <div class="flex h-4/5 w-full items-center">
@@ -1213,6 +1262,15 @@ transition: slide-left
 layout: default
 ---
 
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/dry.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
 ### **Example without TranzactIO** - Transforming `ConnectionIO` to `ZIO`/`ZStream`
 
 <div class="flex h-4/5 w-full items-center">
@@ -1263,7 +1321,7 @@ layout: default
 ## **Example without TranzactIO** - Running queries
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-6|8|9-19|11|12|13|14|15-16|17-18|19-20}{maxHeight:'300px'}
+```scala {1-6|8|9-21|11|12|13|14|15-16|17-18|19-20}{maxHeight:'300px'}
 import zio.*
 import zio.stream.*
 import zio.interop.catz.*
@@ -1316,6 +1374,15 @@ object DoobieExample extends ZIOAppDefault:
 
   val run = program.provide(transactorLayer)
 ```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/dontNeedThat.jpg" class="h-70 rounded-md"/></div>
 </div>
 
 ---
@@ -1394,6 +1461,24 @@ transition: slide-left
 layout: default
 ---
 
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/picardBetter.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/tranzactio.gif" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
 ### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
 
 <div class="flex h-4/5 w-full items-center">
@@ -1428,14 +1513,36 @@ transition: slide-left
 layout: default
 ---
 
+<div class="flex w-full h-full justify-center items-center">
+  <div><img src="/tranzactio2.jpg" class="h-70 rounded-md"/></div>
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
 ### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5}{maxHeight:'300px'}
+```scala {1|2|3}{maxHeight:'300px'}
 type TranzactIO[A] = ZIO[Connection, DbException, A]
 type Connection    = Transactor[Task]
 type TranzactIO[A] = ZIO[Transactor[Task], DbException, A]
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1|2|3}{maxHeight:'300px'}
 type TranzactIOSream[A] = ZStream[Connection, DbException, A]
+type Connection         = Transactor[Task]
 type TranzactIOSream[A] = ZStream[Transactor[Task], DbException, A]
 ```
 </div>
@@ -1490,7 +1597,7 @@ layout: default
 ### **Example with TranzactIO** - Combining queries into transactions
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|4-23|7-10}{maxHeight:'300px'}
+```scala {1|7-10}{maxHeight:'300px'}
 object TranzactioExampleWithTransactions extends ZIOAppDefault:
   ...
 
@@ -1513,6 +1620,8 @@ object TranzactioExampleWithTransactions extends ZIOAppDefault:
                                                 .mapZIO(coffee => Console.printLine(coffee).orDie)
                                                 .runDrain
     yield ()
+```
+</div>
 
 ---
 transition: slide-left
