@@ -161,7 +161,7 @@ layout: default
 ## **Example:** Chemical Elements CSV
 
 <div class="flex h-4/5 w-full items-center">
-```csv {all} {maxHeight:'300px'}
+```csv {1|2-4} {maxHeight:'300px'}
 element,symbol,melting temperature [F],boiling temperature [F]
 hydrogen,H,13.99,20.271
 helium,He,0.95,4.222
@@ -177,15 +177,13 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|8|10-14}{maxHeight:'300px'}
+```scala {1|2|3|4|5|6|8-12|8|11-12}{maxHeight:'300px'}
 //> using jvm graalvm-java23:23.0.0
 //> using scala 3.5.2
 //> using dep info.fingo::spata:3.2.1
 //> using dep dev.zio::zio-interop-cats:23.1.0.3
 //> using dep dev.zio::zio-schema:1.5.0
 //> using dep dev.zio::zio-schema-derivation:1.5.0
-
-import zio.schema.*
 
 final case class Element(element: String, symbol: String, meltingTemp: Double, boilingTemp: Double):
   self =>
@@ -295,7 +293,7 @@ layout: default
 ## Customizing the `CSVRenderer`
 
 <div class="flex h-4/5 w-full items-center">
-```scala {5-10|6|7|8|9|12-16|13|14|15|16|18}{maxHeight:'300px'}
+```scala {5-10|12-16|13|14|15|16|18}{maxHeight:'300px'}
 import info.fingo.spata.{CSVParser, Record}
 import zio.*
 import zio.interop.catz.*
@@ -506,7 +504,7 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|7|9|10|11|12|14-18|21-31|33-34|36-37|39-40|42-43|45-47}{maxHeight:'300px'}
+```scala {1|2|3|4|5|6|7|9|10|11|12|14-18|21-31|33-34|36-37|39-40|42-43|43|42|45-47}{maxHeight:'300px'}
 //> using jvm graalvm-java11:22.3.3
 //> using scala 3.5.2
 //> using dep me.mnedokushev::zio-apache-parquet-core:0.1.4
@@ -566,7 +564,7 @@ layout: default
 ## Reading from CSV and processing
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-8|10|12-16|18|20-28}{maxHeight:'300px'}
+```scala {1-8|10|12-16|18-26}{maxHeight:'300px'}
 import java.nio.file.Paths
 import info.fingo.spata.{ CSVParser, Record }
 import info.fingo.spata.io.Reader
@@ -583,8 +581,6 @@ val csvParser: fs2.Pipe[Eff, Char, Record] =
     .mapHeader(Map("melting temperature [F]" -> "meltingTemp", "boiling temperature [F]" -> "boilingTemp"))
     .parser[Eff]
     .parse
-
-val elementsFahrenheitCSVFile = Paths.get("testdata/elements-fahrenheit.csv")
 
 val readFromCsvAndProcess: ZStream[Scope, Throwable, Element] =
   def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
@@ -603,17 +599,13 @@ transition: slide-left
 layout: default
 ---
 
-## Working with Parquet
+## Writing to CSV
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-2|3-6|7-12|14-19|21-28|30|33-34|35-40|41-43|44-45|46-47|48-54|55-61|62-63}{maxHeight:'300px'}
+```scala {1-8|10-15|17-24}{maxHeight:'300px'}
 import info.fingo.spata.{ CSVRenderer, Record }
 import info.fingo.spata.io.Writer
 import me.mnedokushev.zio.apache.parquet.core.hadoop.{ ParquetReader, ParquetWriter, Path }
-import org.apache.parquet.hadoop.*
-import me.mnedokushev.zio.apache.parquet.core.filter.syntax.*
-import me.mnedokushev.zio.apache.parquet.core.filter.*
-import java.nio.file.Paths
 import zio.schema.*
 import zio.*
 import zio.stream.*
@@ -635,12 +627,35 @@ def writeStreamToCsv(stream: ZStream[Scope, Throwable, Element], path: java.nio.
     .through(Writer[Eff].write(path))
     .compile
     .drain
+```
+</div>
+
+---
+transition: slide-left
+layout: default
+---
+
+## Working with Parquet
+
+<div class="flex h-4/5 w-full items-center">
+```scala {1-5|7-9|11|14-15|16|17|18-23|24-26|27-28|29-30|31-37|35|38-44|45-46}{maxHeight:'300px'}
+import me.mnedokushev.zio.apache.parquet.core.hadoop.{ ParquetReader, ParquetWriter, Path }
+import org.apache.parquet.hadoop.*
+import me.mnedokushev.zio.apache.parquet.core.filter.syntax.*
+import me.mnedokushev.zio.apache.parquet.core.filter.*
+import zio.*
+
+val fahrenheitCSVFile      = Paths.get("testdata/elements-fahrenheit.csv")
+val celsiusParquetFile     = Path(Paths.get("testdata/elements-celsius.parquet"))
+val celsiusFilteredCSVFile = Paths.get("testdata/elements-celsius-filtered.csv")
 
 val processor: RIO[ParquetWriter[Element] & ParquetReader[Element], Unit] =
   ZIO.scoped {
     for
-      _                      <- ZIO.log(s"Writing all elements to $elementsCelsiusParquetFile, records' schema will be:")
-      _                      <- ZIO.log(Element.schemaEncoder.encode(Element.schema, "element", optional = false).toString)
+      _                      <- ZIO.log(s"Writing all elements to $celsiusParquetFile")
+      _                      <- ZIO.log(s"The Parquet schema will be:")
+      parquetSchema           = Element.schemaEncoder.encode(Element.schema, "element", optional = false)
+      _                      <- ZIO.log(parquetSchema.toString)
       //                      required group element {
       //                        required binary element (STRING);
       //                        required binary symbol (STRING);
@@ -648,28 +663,28 @@ val processor: RIO[ParquetWriter[Element] & ParquetReader[Element], Unit] =
       //                        required double boilingTemp;
       //                      }
       _                      <- ZIO.serviceWithZIO[ParquetWriter[Element]] {
-                                  _.writeStream(elementsCelsiusParquetFile, readFromCsvAndProcess)
+                                  _.writeStream(celsiusParquetFile, readFromCsvAndProcess)
                                 }
-      _                      <- ZIO.log(s"Reading all elements from $elementsCelsiusParquetFile, as a Chunk")
-      allElementsChunk       <- ZIO.serviceWith[ParquetReader[Element]](_.readChunk(elementsCelsiusParquetFile))
-      _                      <- ZIO.log(s"Reading all elements from $elementsCelsiusParquetFile, as a ZStream")
-      allElementsStream      <- ZIO.serviceWith[ParquetReader[Element]](_.readStream(elementsCelsiusParquetFile))
-      _                      <- ZIO.log(s"Reading and filtering elements from $elementsCelsiusParquetFile, as a Chunk")
+      _                      <- ZIO.log(s"Reading all elements from $celsiusParquetFile, as a Chunk")
+      allElementsChunk       <- ZIO.serviceWith[ParquetReader[Element]](_.readChunk(celsiusParquetFile))
+      _                      <- ZIO.log(s"Reading all elements from $celsiusParquetFile, as a ZStream")
+      allElementsStream      <- ZIO.serviceWith[ParquetReader[Element]](_.readStream(celsiusParquetFile))
+      _                      <- ZIO.log(s"Reading/filtering elements from $celsiusParquetFile, as a Chunk")
       filteredElementsChunk  <- ZIO.serviceWith[ParquetReader[Element]] {
                                   _.readChunkFiltered(
-                                    elementsCelsiusParquetFile,
+                                    celsiusParquetFile,
                                     filter(Element.element =!= "hydrogen" `and` Element.meltingTemp > 0)
                                   )
                                 }
-      _                      <- ZIO.log(s"Reading and filtering elements from $elementsCelsiusParquetFile, as a ZStream")
+      _                      <- ZIO.log(s"Reading/filtering elements from $celsiusParquetFile, as a ZStream")
       filteredElementsStream <- ZIO.serviceWith[ParquetReader[Element]] {
                                   _.readStreamFiltered(
-                                    elementsCelsiusParquetFile,
+                                    celsiusParquetFile,
                                     filter(Element.element =!= "hydrogen" `and` Element.meltingTemp > 0)
                                   )
                                 }
-      _                      <- ZIO.log(s"Writing filtered elements to $elementsCelsiusFilteredCSVFile")
-      _                      <- writeStreamToCsv(filteredElementsStream, elementsCelsiusFilteredCSVFile)
+      _                      <- ZIO.log(s"Writing filtered elements to $celsiusFilteredCSVFile")
+      _                      <- writeStreamToCsv(filteredElementsStream, celsiusFilteredCSVFile)
     yield ()
   }
 ```
@@ -1688,11 +1703,11 @@ image: /learn.jpg
 
 <div class="flex h-4/5 w-full items-center">
   <ul>
-    <li v-click><a href="https://github.com/fingo/spata" target="_blank">Spata repo</a></li>
-    <li v-click><a href="https://github.com/grouzen/zio-apache-parquet" target="_blank">zio-apache-parquet repo</a></li>
-    <li v-click><a href="https://github.com/hnaderi/yaml4s" target="_blank">yaml4s repo</a></li>
-    <li v-click><a href="https://github.com/dacr/zio-lmdb" target="_blank">zio-lmdb repo</a></li>
-    <li v-click><a href="https://github.com/gaelrenoux/tranzactio" target="_blank">Tranzactio repo</a></li>
+    <li><a href="https://github.com/fingo/spata" target="_blank">Spata repo</a></li>
+    <li><a href="https://github.com/grouzen/zio-apache-parquet" target="_blank">zio-apache-parquet repo</a></li>
+    <li><a href="https://github.com/hnaderi/yaml4s" target="_blank">yaml4s repo</a></li>
+    <li><a href="https://github.com/dacr/zio-lmdb" target="_blank">zio-lmdb repo</a></li>
+    <li><a href="https://github.com/gaelrenoux/tranzactio" target="_blank">Tranzactio repo</a></li>
   </ul>
 </div>
 
