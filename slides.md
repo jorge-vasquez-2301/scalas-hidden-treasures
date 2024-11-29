@@ -178,7 +178,7 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|8-12|8|11-12}{maxHeight:'300px'}
+```scala {1|2|3|4|5-6|8-12|8|11-12}{maxHeight:'300px'}
 //> using jvm graalvm-java23:23.0.0
 //> using scala 3.5.2
 //> using dep info.fingo::spata:3.2.1
@@ -496,7 +496,7 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|7|9-10|11|12|14-18|21-31|33-34|36-37|39-40|42-43}{maxHeight:'300px'}
+```scala {1|2|3|4|5|6-7|9-10|11|12|14-18|21-31|33-34|36-37|39-40|42-43}{maxHeight:'300px'}
 //> using jvm graalvm-java11:22.3.3
 //> using scala 3.5.2
 //> using dep me.mnedokushev::zio-apache-parquet-core:0.1.4
@@ -1010,7 +1010,7 @@ layout: default
 ## Loading elements from CSV
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|3-7|9-11|14-21|15-16|17|18|19|12,20|21}{maxHeight:'300px'}
+```scala {1|3-7|9-11|14-22|15-16|17|18|19|12,20|21|22}{maxHeight:'300px'}
 val fahrenheitCSV = "testdata/elements-fahrenheit.csv"
 
 val csvParser: fs2.Pipe[Task, Char, Record] =
@@ -1030,7 +1030,8 @@ def loadElementsFromCSV(
         .through(csvParser)
         .toZStream()
         .mapZIO(record => ZIO.fromEither(record.to[Element]))
-        .mapZIO(element => elements.upsertOverwrite(element.symbol, element.updateTemps(fahrenheitToCelsius)))
+        .map(_.updateTemps(fahrenheitToCelsius))
+        .mapZIO(element => elements.upsertOverwrite(element.symbol, element))
         .runDrain
 
 ```
@@ -1448,7 +1449,7 @@ transition: slide-left
 layout: default
 ---
 
-### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`/`ZStream`
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {1-2|5-6|8-9|11-12|14-15|17-18|20-21}{maxHeight:'300px'}
@@ -1491,7 +1492,7 @@ transition: slide-left
 layout: default
 ---
 
-### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`/`ZStream`
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {1|2|3}{maxHeight:'300px'}
