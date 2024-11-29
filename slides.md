@@ -61,7 +61,8 @@ image: ./agenda.jpg
 
 ## **Agenda**
 
-<div class="mt-4 flex h-4/5 w-full items-center gap-5 text-justify">
+<div class="mt-4 flex flex-col h-4/5 w-full items-center gap-5 text-justify">
+  <p><b>5 libraries</b> to handle diverse data-processing tasks</p>
   <ul>
     <li v-click>Stream-based CSV processing with <b>Spata</b></li>
     <li v-click>Type-safe processing of Parquet files with <b>ZIO Apache Parquet</b></li>
@@ -484,15 +485,6 @@ layout: default
 ---
 
 <div class="flex w-full h-full justify-center items-center">
-  <div><img src="/notRequired.jpg" class="h-70 rounded-md"/></div>
-</div>
-
----
-transition: slide-left
-layout: default
----
-
-<div class="flex w-full h-full justify-center items-center">
   <div><img src="/picard.jpg" class="h-70 rounded-md"/></div>
 </div>
 
@@ -504,7 +496,7 @@ layout: default
 ## Domain modelling
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3|4|5|6|7|9|10|11|12|14-18|21-31|33-34|36-37|39-40|42-43|43|42|45-47}{maxHeight:'300px'}
+```scala {1|2|3|4|5|6|7|9-10|11|12|14-18|21-31|33-34|36-37|39-40|42-43}{maxHeight:'300px'}
 //> using jvm graalvm-java11:22.3.3
 //> using scala 3.5.2
 //> using dep me.mnedokushev::zio-apache-parquet-core:0.1.4
@@ -548,10 +540,6 @@ object Element:
 
   given TypeTag[Element]                          = Derive.derive[TypeTag, Element](TypeTagDeriver.default)
   val (element, symbol, meltingTemp, boilingTemp) = Filter[Element].columns
-
-extension [A](a: A)
-  def toRecord(using schema: Schema.Record[A]) =
-    Record.fromPairs(schema.fields.map(field => field.fieldName -> field.get(a).toString)*)
 
 ```
 </div>
@@ -861,7 +849,7 @@ layout: default
 ## Processing the YAML file
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1|2|3-4|5|6|8|9-14|10-11|12|13|14|16-19|17|18|19|21|22|24-36|26-27|28|29|30|31|32|33|34-35}{maxHeight:'300px'}
+```scala {1|2|3-4|5|6|8|9-14|16-19|21|22|24-36|26-27|28|29|30|31|32|33|34-35}{maxHeight:'300px'}
 import zio.*
 import zio.stream.*
 import zio.json.*
@@ -1022,17 +1010,7 @@ layout: default
 ## Loading elements from CSV
 
 <div class="flex h-4/5 w-full items-center">
-```scala {1-2|3-4|5-6|7-8|9|11|13-17|19-22|23-30|24-25|26|27|28|29|30}{maxHeight:'300px'}
-import zio.*
-import zio.json.*
-import zio.lmdb.*
-import zio.lmdb.StorageUserError.*
-import zio.interop.catz.*
-import zio.stream.interop.fs2z.*
-import info.fingo.spata.{ CSVParser, Record }
-import info.fingo.spata.io.Reader
-import java.nio.file.Paths
-
+```scala {1|3-7|9-11|14-21|15-16|17|18|19|12,20|21}{maxHeight:'300px'}
 val fahrenheitCSV = "testdata/elements-fahrenheit.csv"
 
 val csvParser: fs2.Pipe[Task, Char, Record] =
@@ -1041,43 +1019,19 @@ val csvParser: fs2.Pipe[Task, Char, Record] =
     .parser[Task]
     .parse
 
-def loadElementsFromCSV(elements: LMDBCollection[Element]): IO[
-  CollectionNotFound | JsonFailure | StorageSystemError | Throwable | OverSizedKey | Option[FetchErrors],
-  Unit
-] =
-  ZIO.log(s"Processing $fahrenheitCSV")
-    *> Reader[Task]
-      .read(Paths.get(fahrenheitCSV))
-      .through(csvParser)
-      .toZStream()
-      .mapZIO(record => ZIO.fromEither(record.to[Element]))
-      .mapZIO(processElement)
-      .runDrain
-
-```
-</div>
-
----
-transition: slide-left
-layout: default
----
-
-## Loading elements from CSV
-
-<div class="flex h-4/5 w-full items-center">
-```scala {1|4|5-7|8|9-12,2}{maxHeight:'300px'}
-def processElement(element: Element): IO[UpsertErrors | Option[FetchErrors], Option[Element]] =
+def loadElementsFromCSV(
+  elements: LMDBCollection[Element]
+): IO[Throwable | OverSizedKey | (CollectionNotFound | JsonFailure | StorageSystemError), Unit] =
   def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-  elements.upsertOverwrite(element.symbol, element)
-    *> elements.contains(element.symbol) @@ ZIOAspect.logged(
-      s"Checking whether ${elements.name} contains ${element.symbol}"
-    )
-    *> elements.fetch(element.symbol).some @@ ZIOAspect.logged("Found element")
-    *> elements.update(
-      element.symbol,
-      _.updateTemps(fahrenheitToCelsius)
-    ) @@ ZIOAspect.logged("Updated element")
+  ZIO.log(s"Loading $fahrenheitCSV into LMDB")
+    *> Reader[Task]
+        .read(Paths.get(fahrenheitCSV))
+        .through(csvParser)
+        .toZStream()
+        .mapZIO(record => ZIO.fromEither(record.to[Element]))
+        .mapZIO(element => elements.upsertOverwrite(element.symbol, element.updateTemps(fahrenheitToCelsius)))
+        .runDrain
 
 ```
 </div>
@@ -1552,7 +1506,7 @@ transition: slide-left
 layout: default
 ---
 
-### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`
+### **Example with TranzactIO** - Transforming `ConnectionIO` to `ZIO`/`ZStream`
 
 <div class="flex h-4/5 w-full items-center">
 ```scala {1|2|3}{maxHeight:'300px'}
@@ -1703,6 +1657,7 @@ image: /learn.jpg
 
 <div class="flex h-4/5 w-full items-center">
   <ul>
+    <li><a href="https://github.com/jorge-vasquez-2301/snippets-functional-scala-2024" target="_blank">scala-cli examples</a></li>
     <li><a href="https://github.com/fingo/spata" target="_blank">Spata repo</a></li>
     <li><a href="https://github.com/grouzen/zio-apache-parquet" target="_blank">zio-apache-parquet repo</a></li>
     <li><a href="https://github.com/hnaderi/yaml4s" target="_blank">yaml4s repo</a></li>
