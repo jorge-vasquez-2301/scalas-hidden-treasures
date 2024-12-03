@@ -34,7 +34,7 @@ transition: slide-left
 
 <style>
   .slidev-layout.cover {
-      @apply !bg-[url('/background.png')] pl-20 pt-20
+      @apply !bg-[url('/background2.png')] pl-20 pt-20
   }
 </style>
 
