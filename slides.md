@@ -62,7 +62,7 @@ image: ./agenda.jpg
 ## **Agenda**
 
 <div class="mt-4 flex flex-col h-4/5 w-full items-center gap-5 text-justify">
-  <p><b>5 libraries</b> to handle diverse data-processing tasks</p>
+  <p><b>5 libraries</b> to handle diverse data-processing tasks, all of them compatible with <b>Scala 3</b> and <b>ZIO</b></p>
   <ul>
     <li v-click>Stream-based CSV processing with <b>Spata</b></li>
     <li v-click>Type-safe processing of Parquet files with <b>ZIO Apache Parquet</b></li>
@@ -99,7 +99,6 @@ layout: default
   <ul>
     <li v-click>Spata is a <b>functional CSV processor</b></li>
     <li v-click>Offers a <b>stream-based API</b>, backed by FS2</li>
-    <li v-click>Supports <b>Scala 3</b></li>
     <li v-click>Allows <b>easy conversion</b> between CSV rows and case classes</li>
     <li v-click>Provides <b>precise information</b> about possible flaws and their location in source data</li>
   </ul>
