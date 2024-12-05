@@ -15,7 +15,7 @@
         </LightOrDark>
     </footer>
 
-    <div v-if="$nav.currentPage !== 1 && $nav.hasNext && $nav.currentLayout !== 'image-right'" class="absolute bottom-0 z-50 flex w-full justify-center items-start text-[8px] mb-4">
+    <footer v-if="$nav.currentPage !== 1 && $nav.hasNext && $nav.currentLayout !== 'image-right'" class="absolute bottom-0 z-50 flex w-full justify-center items-start text-[8px] mb-4">
         <p>Scala's Hidden Treasures: Five ZIO-Compatible Libraries you didn't know you needed! for Functional Scala 2024</p>
-    </div>
+    </footer>
 </template>
